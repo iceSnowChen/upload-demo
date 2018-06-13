@@ -1,0 +1,43 @@
+server:
+  port: 8888
+
+spring:
+    datasource:
+        type: com.alibaba.druid.pool.DruidDataSource
+        driverClassName: com.mysql.jdbc.Driver
+        url: jdbc:mysql://127.0.0.1:3306/fern?useUnicode=true&characterEncoding=utf8&rewriteBatchedStatements=true
+        username: fern
+        password: fern
+
+        #druid数据连接池配置
+        filters: stat
+        maxActive: 20
+        initialSize: 5
+        minIdle: 5
+        maxIdle: 10
+        maxWait: 60000
+        timeBetweenEvictionRunsMillis: 60000
+        minEvictableIdleTimeMillis: 300000
+        validationQuery: select 1
+        testWhileIdle: true
+        testOnBorrow: false
+        testOnReturn: false
+        poolPreparedStatements: true
+        maxOpenPreparedStatements: 20
+    http:
+        multipart:
+            maxFileSize: 500MB
+            maxRequestSize: 1000MB
+    thymeleaf:
+        prefix: classpath:templates/
+        suffix: .html
+        mode: LEGACYHTML5
+
+mybatis:
+    mapper-locations: classpath*:mapper/*Mapper.xml
+    type-aliases-package: com.tm.entity
+
+#logging:
+#  path: E:\\workspace\\logs
+# file: logback.log
+  

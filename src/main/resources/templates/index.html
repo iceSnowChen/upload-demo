@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="utf-8">
+	<title>上传插件集成</title>
+	<meta name="renderer" content="webkit">
+	<meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+	<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+	<meta name="apple-mobile-web-app-status-bar-style" content="black">
+	<meta name="apple-mobile-web-app-capable" content="yes">
+	<meta name="format-detection" content="telephone=no">
+	<link rel="stylesheet" href="/layui-2.3.0/css/layui.css" media="all" />
+	<link href="/streamUpload/css/stream-v1.css" rel="stylesheet" type="text/css">
+	<link href="/bootstrap-3.3.7/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="childrenBody" style="width: 95%">
+	<div class="layui-upload" style="margin-left: 15px;margin-top: 15px;width: 100%">
+	  <button type="button" class="layui-btn layui-btn-normal margin-left" id="uploadFileList">选择多文件</button>
+	  <div class="layui-upload-list" style="width: 100%">
+	    <div class="container" style="width: 100%;min-width: 550px;">
+			<div class="row clearfix">
+				<div class="col-md-7 column" style="width: 80%;overflow: auto;max-height: 400px;">
+					<table id="data_table" class="layui-table" lay-skin="line" style="width: 100%;min-width: 500px;">
+						<thead>
+							<tr>
+								<th>文件名</th>
+								<th style="width: 40%">进度</th>
+								<th style="min-width: 60px">大小</th>
+								<th style="min-width: 70px">操作</th>
+							</tr>
+						</thead>
+						<tbody id="bootstrap-stream-container">
+						</tbody>
+					</table>
+				</div>
+			</div>
+		</div>
+		<div class="container" style="width: 100%">
+			<div class="row clearfix" style="width: 100%">
+				<div class="col-md-7 column" style="width: 80%">
+					<table style="margin-top: 10px;width: 100%" id="stream_total_progress_bar">
+						<tr>
+							<th style="min-width: 500px;">
+								<div class="progress">
+								  <div class="progress-bar progress-bar-success" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" style="width: 0%">
+								  </div>
+								</div>
+							</th>
+						</tr>
+						<tr>
+							<th>
+								<span class="stream_total_size"></span>
+								<span class="stream_total_percent"></span>
+							</th>
+						</tr>
+					</table>
+				</div>
+			</div>
+		</div>
+		<div class="margin-left">
+			<button type="button" class="layui-btn start" id="startUploadFileButton">
+				<i class="layui-icon">&#xe652;</i>开始上传
+			</button>
+			<button type="button" class="layui-btn" id="canleUploadFileButton">
+				<i class="layui-icon">&#xe640;</i>取消上传
+			</button>
+		</div>
+	  </div>
+	</div>  
+	
+	<script type="text/javascript" src="/layui-2.3.0/layui.js"></script>
+	<script type="text/javascript" src="/streamUpload/js/stream-v1.js"></script>
+	<script src="/jquery/jquery-3.3.1.min.js"></script>
+	<script type="text/javascript" src="/bootstrap-3.3.7/js/bootstrap.min.js"></script>
+	
+	<script type="text/javascript">
+	var config = {
+			enabled: true, /** 是否启用文件选择，默认是true */
+			customered: true,
+			multipleFiles: true, /** 是否允许同时选择多个文件，默认是false */	
+			autoRemoveCompleted: false, /** 是否自动移除已经上传完毕的文件，非自定义UI有效(customered:false)，默认是false */
+			autoUploading: false, /** 当选择完文件是否自动上传，默认是true */
+			fileFieldName: "FileData", /** 相当于指定<input type="file" name="FileData">，默认是FileData */
+			maxSize: 2147483648, /** 当_t.bStreaming = false 时（也就是Flash上传时），2G就是最大的文件上传大小！所以一般需要 */
+			simLimit: 200, /** 允许同时选择文件上传的个数（包含已经上传过的） */
+			//extFilters: [".ppt",".pptx",".doc",".docx",".xls",".xlsx",".pdf"], /** 默认是全部允许，即 [] */
+			browseFileId : "uploadFileList", /** 文件选择的Dom Id，如果不指定，默认是i_select_files */
+			browseFileBtn : "", /** 选择文件的按钮内容，非自定义UI有效(customered:false) */
+			filesQueueId : "i_stream_files_queue", /** 文件上传进度显示框ID，非自定义UI有效(customered:false) */
+			filesQueueHeight : 450, /** 文件上传进度显示框的高，非自定义UI有效(customered:false)，默认450px */
+			messagerId : "i_stream_message_container", /** 消息框的Id，当没有自定义onXXX函数，系统会显示onXXX的部分提示信息，如果没有i_stream_message_container则不显示 */
+			uploadURL : "/uploadFile",
+			tokenURL : "/queryToken",
+			postVarsPerFile:{
+			},
+			onSelect: function(files) {
+			},
+			onMaxSizeExceed: function(file) {
+				$("#i_error_tips > span.text-message").append("文件[name="+file.name+", size="+file.formatSize+"]超过文件大小限制‵"+file.formatLimitSize+"‵，将不会被上传！<br>");
+			},
+			onFileCountExceed : function(selected, limit) {
+				$("#i_error_tips > span.text-message").append("同时最多上传<strong>"+limit+"</strong>个文件，但是已选择<strong>"+selected+"</strong>个<br>");
+			},
+			onExtNameMismatch: function(info) {
+				$("#i_error_tips > span.text-message").append("<strong>"+info.name+"</strong>文件类型不匹配[<strong>"+info.filters.toString() + "</strong>]<br>");
+			},
+			onAddTask: function(file) {
+				 var file = '<tr id="' + file.id + '" class="template-upload fade in">' +
+			     '<td><span class="preview">'+file.name+'</span></td>' +
+			     '<td>' +
+			     '    <div> <span class="message-text" style="font-size: 13px"></span></div>' +
+			     '    <div class="progress progress-striped active" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">' +
+				'			<div class="progress-bar progress-bar-success" title="" style="width: 0%;"></div>' +
+				'		</div>' +
+			     '</td>' +
+			     '<td><p class="size">' + file.formatSize + '</p>' +
+			     '</td>' +
+			     '<td><span class="glyphicon glyphicon-remove" onClick="javascript:_t.cancelOne(\'' + file.id + '\')"></span>' +
+			     '</td></tr>';
+				$("#bootstrap-stream-container").append(file);
+			},
+			onUploadProgress: function(file) {
+				var $bar = $("#"+file.id).find("div.progress-bar");
+				$bar.css("width", file.percent + "%");
+				var $message = $("#"+file.id).find("span.message-text");
+				$message.text("已上传:" + file.formatLoaded + "/" + file.formatSize + "(" + file.percent + "%" + ") 速  度:" + file.formatSpeed);
+				
+				var $total = $("#stream_total_progress_bar");
+				$total.find("div.progress-bar").css("width", file.totalPercent + "%");
+				$total.find("span.stream_total_size").html(file.formatTotalLoaded + "/" + file.formatTotalSize);
+				$total.find("span.stream_total_percent").html(file.totalPercent + "%");
+			},
+			onStop: function() {
+			},
+			onCancel: function(file) {
+				$("#"+file.id).remove();
+				var $total = $("#stream_total_progress_bar");
+				$total.find("div.progress-bar").css("width", file.totalPercent + "%");
+				$total.find("span.stream_total_size").text(file.formatTotalLoaded + "/" + file.formatTotalSize);
+				$total.find("span.stream_total_percent").text(file.totalPercent + "%");
+				//console && console.log("-------------onCancel-------------------End");
+			},
+			onCancelAll: function(numbers) {
+				$("#i_error_tips > span.text-message").append(numbers + " 个文件已被取消上传！！！");
+			},
+			onComplete: function(file) {
+				/** 100% percent */
+				var $bar = $("#"+file.id).find("div.progress-bar");
+				$bar.css("width", file.percent + "%");
+				var $message = $("#"+file.id).find("span.message-text");
+				$message.text("已上传:" + file.formatLoaded + "/" + file.formatSize + "(" + file.percent + "%" + ")");
+				/** remove the `cancel` button */
+				var $cancelBtn = $("#"+file.id).find("td:last > span");
+				$cancelBtn.remove();
+				
+				/** modify the total progress bar */
+				var $total = $("#stream_total_progress_bar");
+				$total.find("div.progress-bar").css("width", file.totalPercent + "%");
+				$total.find("span.stream_total_size").text(file.formatTotalLoaded + "/" + file.formatTotalSize);
+				$total.find("span.stream_total_percent").text(file.totalPercent + "%");
+				
+				//console && console.log("-------------onComplete-------------------End");
+			},
+			onQueueComplete: function(msg) {
+				$("#startUploadFileButton").html('<i class="layui-icon">&#xe652;</i>开始上传');
+				$("#startUploadFileButton").removeClass("stop").addClass("start");
+				$("#returnListPageButton").removeClass("layui-btn-disabled");
+				$("#returnListPageButton").prop("disabled",false);
+			},
+			onUploadError: function(status, msg) {
+				$("#i_error_tips > span.text-message").append(msg + ", 状态码:" + status);
+			}
+		};
+		var _t = new Stream(config);
+
+		function cancelOne(id){
+			_t.cancelOne(id);
+		}
+
+		$("#startUploadFileButton").click(function(){
+			if($(this).hasClass("start")){
+				$(this).html('<i class="layui-icon">&#xe651;</i>暂停上传');
+				$(this).removeClass("start").addClass("stop");
+				$("#returnListPageButton").addClass("layui-btn-disabled");
+				$("#returnListPageButton").prop("disabled",true);
+				_t.upload();
+			}else{
+				$(this).html('<i class="layui-icon">&#xe652;</i>开始上传');
+				$(this).removeClass("stop").addClass("start");
+				$("#returnListPageButton").removeClass("layui-btn-disabled");
+				$("#returnListPageButton").prop("disabled",false);
+				_t.stop();
+			}
+		});
+
+		$("#canleUploadFileButton").click(function(){
+			_t.cancel();
+		});
+	</script>
+</body>
+</html>
